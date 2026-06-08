@@ -13,6 +13,7 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
     async function fetchOne() {
@@ -23,6 +24,7 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
+        setImageError(false)
       }
       setLoading(false)
     }
@@ -147,27 +149,31 @@ export default function ComplaintDetails() {
         {item.image_url && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="col" style={{ gap: 8 }}>
             <strong>Attachment</strong>
-            <div style={{ width: '100%', minHeight: '100px', background: '#1e293b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #334155', overflow: 'hidden' }}>
+            
+            {!imageError ? (
               <img 
                 src={item.image_url} 
                 alt="Complaint attachment" 
-                style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', cursor: 'pointer' }}
+                style={{ width: '100%', borderRadius: '12px', maxHeight: '600px', objectFit: 'contain', cursor: 'pointer', background: '#1e293b', border: '1px solid #334155' }}
                 onClick={() => window.open(item.image_url, '_blank')}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  const fallbackLink = document.createElement('a');
-                  fallbackLink.href = item.image_url;
-                  fallbackLink.target = '_blank';
-                  fallbackLink.rel = 'noreferrer';
-                  fallbackLink.style.padding = '20px';
-                  fallbackLink.style.color = '#60a5fa';
-                  fallbackLink.style.textDecoration = 'none';
-                  fallbackLink.style.fontWeight = '500';
-                  fallbackLink.textContent = '📄 Click here to open attachment';
-                  e.target.parentElement.appendChild(fallbackLink);
+                onError={() => {
+                  console.log('Image failed to load, showing fallback link');
+                  setImageError(true);
                 }}
               />
-            </div>
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' }}>
+                <a 
+                  href={item.image_url} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  style={{ color: '#60a5fa', textDecoration: 'none', fontSize: '18px', fontWeight: '500' }}
+                >
+                  🖼️ Click here to view the image
+                </a>
+                <p style={{ color: '#94a3b8', marginTop: '10px', fontSize: '14px' }}>Image will open in a new tab</p>
+              </div>
+            )}
           </motion.div>
         )}
 
