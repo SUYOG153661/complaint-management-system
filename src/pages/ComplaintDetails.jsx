@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { motion } from 'framer-motion'
 import { PhoneCall, MapPin, AlertTriangle, FileImage, FileText } from 'lucide-react'
+import heic2any from 'heic2any'
 
 export default function ComplaintDetails() {
   const { id } = useParams()
@@ -15,6 +16,8 @@ export default function ComplaintDetails() {
   const [sending, setSending] = useState(false)
   const [isImage, setIsImage] = useState(true)
   const [imageLoadError, setImageLoadError] = useState(false)
+  const [convertedImageUrl, setConvertedImageUrl] = useState(null)
+  const [converting, setConverting] = useState(false)
 
   useEffect(() => {
     async function fetchOne() {
@@ -26,16 +29,42 @@ export default function ComplaintDetails() {
         setItem(data)
         setReply(data.admin_remark || '')
         setImageLoadError(false)
+        setConvertedImageUrl(null)
+        setConverting(false)
         
         if (data.image_url) {
           const url = data.image_url.toLowerCase()
-          setIsImage(url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif') || url.endsWith('.webp') || url.endsWith('.bmp'))
+          setIsImage(url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif') || url.endsWith('.webp') || url.endsWith('.bmp') || url.endsWith('.heic') || url.endsWith('.heif'))
+          
+          // If it's HEIC, convert it
+          if (url.endsWith('.heic') || url.endsWith('.heif')) {
+            convertHeicToImage(data.image_url)
+          }
         }
       }
       setLoading(false)
     }
     fetchOne()
   }, [id])
+
+  async function convertHeicToImage(url) {
+    try {
+      setConverting(true)
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const convertedBlob = await heic2any({
+        blob,
+        toType: 'image/jpeg',
+        quality: 0.8
+      })
+      const imageUrl = URL.createObjectURL(Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob)
+      setConvertedImageUrl(imageUrl)
+    } catch (err) {
+      console.error('Error converting HEIC:', err)
+      setImageLoadError(true)
+    } finally {
+      setConverting(false)
+  }
 
   async function handleReply() {
     setSending(true)
@@ -73,6 +102,9 @@ export default function ComplaintDetails() {
     locationLink = locationMatch[1];
     displayDescription = displayDescription.replace(locationMatch[0], '');
   }
+
+  // Determine which image URL to use
+  const displayImageUrl = convertedImageUrl || item.image_url;
 
   return (
     <div className="container">
@@ -169,10 +201,12 @@ export default function ComplaintDetails() {
               }}
               onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
             >
-              {isImage && !imageLoadError ? (
+              {converting ? (
+                <div style={{ color: '#94a3b8', fontSize: '16px' }}>Converting image...</div>
+              ) : (convertedImageUrl || (isImage && !imageLoadError) ? (
                 <div>
                   <img 
-                    src={item.image_url} 
+                    src={displayImageUrl} 
                     alt="Complaint attachment" 
                     style={{ 
                       maxWidth: '100%', 
@@ -180,7 +214,10 @@ export default function ComplaintDetails() {
                       objectFit: 'contain',
                       borderRadius: '8px'
                     }}
-                    onError={() => setImageLoadError(true)}
+                    onError={() => {
+                      console.error('Image load error')
+                      setImageLoadError(true)
+                    }}
                   />
                   <p style={{ color: '#94a3b8', marginTop: '10px', fontSize: '14px' }}>Click to open in new tab</p>
                 </div>
