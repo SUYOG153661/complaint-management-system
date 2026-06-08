@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
+import { supabase, BUCKET } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PhoneCall, MapPin, AlertTriangle } from 'lucide-react'
@@ -13,6 +13,8 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [imageUrl, setImageUrl] = useState(null)
+  const [imageLoading, setImageLoading] = useState(false)
 
   useEffect(() => {
     async function fetchOne() {
@@ -23,11 +25,46 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
+        if (data.image_url) {
+          await getSignedImageUrl(data.image_url)
+        }
       }
       setLoading(false)
     }
     fetchOne()
   }, [id])
+
+  async function getSignedImageUrl(originalUrl) {
+    if (!originalUrl) return
+    setImageLoading(true)
+    try {
+      // Extract path from URL or use directly
+      let path = originalUrl
+      if (originalUrl.includes('/storage/v1/object/public/')) {
+        path = originalUrl.split('/storage/v1/object/public/')[1]
+      } else if (originalUrl.includes('/')) {
+        path = originalUrl
+      }
+
+      // If path still has bucket name, remove it
+      if (path.startsWith(BUCKET + '/')) {
+        path = path.substring(BUCKET.length + 1)
+      }
+
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24) // 24 hours
+      if (!error && data) {
+        setImageUrl(data.signedUrl)
+      } else {
+        // Fallback to original URL if signed URL fails
+        setImageUrl(originalUrl)
+      }
+    } catch (err) {
+      console.error('Error getting signed URL:', err)
+      setImageUrl(originalUrl) // Fallback
+    } finally {
+      setImageLoading(false)
+    }
+  }
 
   async function handleReply() {
     setSending(true)
@@ -218,7 +255,7 @@ export default function ComplaintDetails() {
           {displayDescription}
         </motion.div>
         
-        {item.image_url && (
+        {(item.image_url || imageUrl) && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -227,7 +264,50 @@ export default function ComplaintDetails() {
             style={{ gap:8 }}
           >
             <strong>Attachment</strong>
-            <img src={item.image_url} alt="attachment" style={{ maxWidth: '100%', borderRadius: 8, maxHeight: 400, objectFit:'contain', background:'var(--bg)' }} />
+            {imageLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', background: 'var(--bg)', borderRadius: 8 }}>
+                Loading image...
+              </div>
+            ) : imageUrl ? (
+              <div style={{ position: 'relative' }}>
+                <img 
+                  src={imageUrl} 
+                  alt="attachment" 
+                  style={{ 
+                    maxWidth: '100%', 
+                    borderRadius: 8, 
+                    maxHeight: 500, 
+                    objectFit: 'contain', 
+                    background:'var(--bg)',
+                    cursor: 'pointer'
+                  }} 
+                  onClick={() => window.open(imageUrl, '_blank')}
+                  onError={(e) => {
+                    console.error('Image failed to load:', imageUrl)
+                    e.target.style.display = 'none'
+                    e.target.nextElementSibling.style.display = 'block'
+                  }}
+                />
+                <div 
+                  style={{ 
+                    display: 'none', 
+                    padding: '32px', 
+                    background: 'var(--bg)', 
+                    borderRadius: 8,
+                    textAlign: 'center',
+                    color: 'var(--muted)'
+                  }}
+                >
+                  Failed to load image. <a href={imageUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Click here to open it</a>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '16px', background: 'var(--bg)', borderRadius: 8 }}>
+                <a href={item.image_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                  View Attachment
+                </a>
+              </div>
+            )}
           </motion.div>
         )}
 
