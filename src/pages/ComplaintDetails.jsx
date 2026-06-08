@@ -13,8 +13,6 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
-  const [imageUrl, setImageUrl] = useState(null)
-  const [imageLoading, setImageLoading] = useState(false)
 
   useEffect(() => {
     async function fetchOne() {
@@ -25,30 +23,11 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
-        if (data.image_url) {
-          await getSignedImageUrl(data.image_url)
-        }
       }
       setLoading(false)
     }
     fetchOne()
   }, [id])
-
-  async function getSignedImageUrl(originalUrl) {
-    if (!originalUrl) return
-    console.log('Original image URL:', originalUrl)
-    setImageLoading(true)
-    try {
-      // Try to get the public URL properly
-      setImageUrl(originalUrl)
-      setImageLoading(false)
-    } catch (err) {
-      console.error('Error with image URL:', err)
-      setImageUrl(originalUrl) // Fallback
-    } finally {
-      setImageLoading(false)
-    }
-  }
 
   async function handleReply() {
     setSending(true)
@@ -239,42 +218,34 @@ export default function ComplaintDetails() {
           {displayDescription}
         </motion.div>
         
-        {(item.image_url || imageUrl) && (
+        {item.image_url && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4 }}
             className="col" 
-            style={{ gap:8 }}
+            style={{ gap: 8 }}
           >
             <strong>Attachment</strong>
-            {imageLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', background: 'var(--bg)', borderRadius: 8 }}>
-                Loading image...
-              </div>
-            ) : imageUrl ? (
-              <div style={{ position: 'relative' }}>
-                <img 
-                  src={imageUrl} 
-                  alt="attachment" 
-                  style={{ 
-                    maxWidth: '100%', 
-                    borderRadius: 8, 
-                    maxHeight: 500, 
-                    objectFit: 'contain', 
-                    background:'var(--bg)',
-                    cursor: 'pointer'
-                  }} 
-                  onClick={() => window.open(imageUrl, '_blank')}
-                />
-              </div>
-            ) : (
-              <div style={{ padding: '16px', background: 'var(--bg)', borderRadius: 8 }}>
-                <a href={item.image_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
-                  View Attachment
-                </a>
-              </div>
-            )}
+            <a 
+              href={item.image_url} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: 'var(--accent)',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              📎 Open Attachment
+            </a>
           </motion.div>
         )}
 
