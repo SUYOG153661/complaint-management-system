@@ -39,40 +39,11 @@ export default function ComplaintDetails() {
     console.log('Original image URL:', originalUrl)
     setImageLoading(true)
     try {
-      // First, try using the original URL directly
+      // Try to get the public URL properly
       setImageUrl(originalUrl)
       setImageLoading(false)
-      return
-      
-      // Fallback to signed URL if needed later
-      // Extract path from URL or use directly
-      /*
-      let path = originalUrl
-      if (originalUrl.includes('/storage/v1/object/public/')) {
-        path = originalUrl.split('/storage/v1/object/public/')[1]
-      } else if (originalUrl.includes('/')) {
-        path = originalUrl
-      }
-
-      // If path still has bucket name, remove it
-      if (path.startsWith(BUCKET + '/')) {
-        path = path.substring(BUCKET.length + 1)
-      }
-
-      console.log('Extracted path:', path)
-
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24) // 24 hours
-      if (!error && data) {
-        console.log('Signed URL:', data.signedUrl)
-        setImageUrl(data.signedUrl)
-      } else {
-        console.error('Signed URL error:', error)
-        // Fallback to original URL if signed URL fails
-        setImageUrl(originalUrl)
-      }
-      */
     } catch (err) {
-      console.error('Error getting signed URL:', err)
+      console.error('Error with image URL:', err)
       setImageUrl(originalUrl) // Fallback
     } finally {
       setImageLoading(false)
@@ -277,17 +248,6 @@ export default function ComplaintDetails() {
             style={{ gap:8 }}
           >
             <strong>Attachment</strong>
-            {/* Debug info - can remove later */}
-            <div style={{ 
-              padding: '8px 12px', 
-              background: '#1e293b', 
-              borderRadius: '6px', 
-              fontSize: '12px',
-              wordBreak: 'break-all'
-            }}>
-              <div style={{ marginBottom: '4px', color: '#94a3b8' }}>Image URL:</div>
-              <div style={{ color: '#22c55e' }}>{item.image_url}</div>
-            </div>
             {imageLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', background: 'var(--bg)', borderRadius: 8 }}>
                 Loading image...
@@ -303,29 +263,10 @@ export default function ComplaintDetails() {
                     maxHeight: 500, 
                     objectFit: 'contain', 
                     background:'var(--bg)',
-                    cursor: 'pointer',
-                    border: '1px solid var(--border)'
+                    cursor: 'pointer'
                   }} 
                   onClick={() => window.open(imageUrl, '_blank')}
-                  onError={(e) => {
-                    console.error('Image failed to load:', imageUrl)
-                    console.error('Error event:', e)
-                    e.target.style.display = 'none'
-                    e.target.nextElementSibling.style.display = 'block'
-                  }}
                 />
-                <div 
-                  style={{ 
-                    display: 'none', 
-                    padding: '32px', 
-                    background: 'var(--bg)', 
-                    borderRadius: 8,
-                    textAlign: 'center',
-                    color: 'var(--muted)'
-                  }}
-                >
-                  Failed to load image. <a href={imageUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Click here to open it</a>
-                </div>
               </div>
             ) : (
               <div style={{ padding: '16px', background: 'var(--bg)', borderRadius: 8 }}>
