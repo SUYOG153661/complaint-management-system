@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase, BUCKET } from '../supabaseClient'
+import { supabase } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { PhoneCall, MapPin, AlertTriangle } from 'lucide-react'
 
 export default function ComplaintDetails() {
@@ -13,7 +13,6 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
-  const [signedImageUrl, setSignedImageUrl] = useState(null)
 
   useEffect(() => {
     async function fetchOne() {
@@ -24,50 +23,17 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
-        if (data.image_url) {
-          await getSignedUrl(data.image_url)
-        }
       }
       setLoading(false)
     }
     fetchOne()
   }, [id])
 
-  async function getSignedUrl(publicUrl) {
-    try {
-      // Extract the file path from the public URL
-      let path = publicUrl
-      if (publicUrl.includes('/storage/v1/object/public/')) {
-        path = publicUrl.split('/storage/v1/object/public/')[1]
-        path = path.slice(path.indexOf('/') + 1) // Remove bucket name from path
-      }
-
-      console.log('Getting signed URL for path:', path)
-      
-      // Get signed URL valid for 24 hours
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(path, 86400)
-
-      if (error) {
-        console.error('Error getting signed URL:', error)
-        setSignedImageUrl(publicUrl) // Fallback to public URL
-      } else {
-        console.log('Signed URL obtained:', data.signedUrl)
-        setSignedImageUrl(data.signedUrl)
-      }
-    } catch (err) {
-      console.error('Error in getSignedUrl:', err)
-      setSignedImageUrl(publicUrl) // Fallback
-    }
-  }
-
   async function handleReply() {
     setSending(true)
     const { error: err } = await supabase.from('complaints').update({ admin_remark: reply }).eq('id', id)
     if (err) setError(err.message)
     else {
-      // Refresh item locally
       setItem(prev => ({ ...prev, admin_remark: reply }))
     }
     setSending(false)
@@ -75,41 +41,23 @@ export default function ComplaintDetails() {
 
   if (loading) return (
     <div className="container">
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="card"
-      >
-        Loading...
-      </motion.div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card">Loading...</motion.div>
     </div>
   )
+  
   if (error) return (
     <div className="container">
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card error"
-      >
-        {error}
-      </motion.div>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card error">{error}</motion.div>
     </div>
   )
+  
   if (!item) return (
     <div className="container">
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="card"
-      >
-        Not found
-      </motion.div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card">Not found</motion.div>
     </div>
   )
 
   const isEmergency = item.category === 'Ragging' || item.priority === 'High';
-  
-  // Extract location link if present
   let displayDescription = item.description || '';
   let locationLink = null;
   const locationMatch = displayDescription.match(/\n\n📍 (?:Emergency )?Location: (https:\/\/maps\.google\.com\/\?q=[0-9.,-]+)/);
@@ -120,58 +68,20 @@ export default function ComplaintDetails() {
 
   return (
     <div className="container">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card col" 
-        style={{ gap: 16, maxWidth: 800, margin: '0 auto' }}
-      >
-        <motion.div 
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="row" 
-          style={{ justifyContent:'space-between', alignItems:'center' }}
-        >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card col" style={{ gap: 16, maxWidth: 800, margin: '0 auto' }}>
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="row" style={{ justifyContent:'space-between', alignItems:'center' }}>
           <div className="row" style={{ gap:8, alignItems:'center' }}>
              <Link to={isAdmin ? "/admin" : "/dashboard"} className="btn secondary">← Back</Link>
              <h2>Complaint Details</h2>
           </div>
           <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <div 
-              style={{ 
-                width: 8, 
-                height: 8, 
-                borderRadius: '50%', 
-                backgroundColor: 
-                  item.status === 'Pending' ? '#ef4444' : 
-                  item.status === 'In Progress' ? '#f59e0b' : 
-                  '#10b981',
-                boxShadow: `0 0 8px ${
-                  item.status === 'Pending' ? '#ef4444' : 
-                  item.status === 'In Progress' ? '#f59e0b' : 
-                  '#10b981'
-                }`
-              }} 
-            />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.status === 'Pending' ? '#ef4444' : item.status === 'In Progress' ? '#f59e0b' : '#10b981', boxShadow: `0 0 8px ${item.status === 'Pending' ? '#ef4444' : item.status === 'In Progress' ? '#f59e0b' : '#10b981'}` }} />
             <span className={`badge status ${item.status==='Pending'?'pending':item.status==='In Progress'?'progress':'resolved'}`}>{item.status}</span>
           </div>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="col" 
-          style={{ gap:8, paddingBottom:16, borderBottom:'1px solid var(--border)' }}
-        >
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="card" 
-            style={{ background: 'var(--bg)', border: '1px solid var(--border)', width: '100%' }}
-          >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="col" style={{ gap:8, paddingBottom:16, borderBottom:'1px solid var(--border)' }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="card" style={{ background: 'var(--bg)', border: '1px solid var(--border)', width: '100%' }}>
             <div className="row" style={{ gap: 16, alignItems: 'center' }}>
               {item.profiles?.avatar_url ? (
                 <img src={item.profiles.avatar_url} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} alt="Student" />
@@ -203,13 +113,7 @@ export default function ComplaintDetails() {
         </motion.div>
 
         {isEmergency && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.25 }}
-            className="card col" 
-            style={{ gap: 12, background: 'rgba(var(--danger-rgb), 0.1)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.25 }} className="card col" style={{ gap: 12, background: 'rgba(var(--danger-rgb), 0.1)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
             <div className="row" style={{ alignItems: 'center', gap: 8, color: 'var(--danger)' }}>
               <AlertTriangle size={20} />
               <strong style={{ fontSize: '1.1rem' }}>Emergency Actions</strong>
@@ -229,62 +133,46 @@ export default function ComplaintDetails() {
         )}
 
         {!isEmergency && locationLink && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.25 }}
-            className="row"
-            style={{ marginTop: 8 }}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.25 }} className="row" style={{ marginTop: 8 }}>
             <a href={locationLink} target="_blank" rel="noreferrer" className="btn secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MapPin size={16} /> View Attached Location
             </a>
           </motion.div>
         )}
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          style={{ lineHeight:1.6, whiteSpace:'pre-wrap' }}
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} style={{ lineHeight:1.6, whiteSpace:'pre-wrap' }}>
           {displayDescription}
         </motion.div>
         
-        {signedImageUrl && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            className="col" 
-            style={{ gap: 8 }}
-          >
+        {item.image_url && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="col" style={{ gap: 8 }}>
             <strong>Attachment</strong>
-            <img 
-              src={signedImageUrl} 
-              alt="Complaint attachment" 
-              style={{ 
-                maxWidth: '100%', 
-                borderRadius: '12px', 
-                maxHeight: '600px', 
-                objectFit: 'contain', 
-                background: '#0f172a', 
-                border: '1px solid #1e293b',
-                cursor: 'pointer'
-              }} 
-              onClick={() => window.open(signedImageUrl, '_blank')}
-            />
+            <div style={{ width: '100%', minHeight: '100px', background: '#1e293b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #334155', overflow: 'hidden' }}>
+              <img 
+                src={item.image_url} 
+                alt="Complaint attachment" 
+                style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', cursor: 'pointer' }}
+                onClick={() => window.open(item.image_url, '_blank')}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  const fallbackLink = document.createElement('a');
+                  fallbackLink.href = item.image_url;
+                  fallbackLink.target = '_blank';
+                  fallbackLink.rel = 'noreferrer';
+                  fallbackLink.style.padding = '20px';
+                  fallbackLink.style.color = '#60a5fa';
+                  fallbackLink.style.textDecoration = 'none';
+                  fallbackLink.style.fontWeight = '500';
+                  fallbackLink.textContent = '📄 Click here to open attachment';
+                  e.target.parentElement.appendChild(fallbackLink);
+                }}
+              />
+            </div>
           </motion.div>
         )}
 
-        {/* Admin Reply Section */}
         {(item.admin_remark || isAdmin) && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            style={{ marginTop:16, padding:'16px', background:'var(--bg)', borderRadius:12, border:'1px solid var(--border)' }}
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} style={{ marginTop:16, padding:'16px', background:'var(--bg)', borderRadius:12, border:'1px solid var(--border)' }}>
             <div className="row" style={{ gap:8, alignItems:'center', marginBottom:12 }}>
               <span className="icon">💬</span>
               <strong>Admin Reply</strong>
@@ -292,14 +180,7 @@ export default function ComplaintDetails() {
             
             {isAdmin ? (
               <div className="col" style={{ gap:12 }}>
-                <textarea 
-                  className="input" 
-                  rows={4}
-                  placeholder="Write a reply to the student..."
-                  value={reply}
-                  onChange={e => setReply(e.target.value)}
-                  style={{ background: 'var(--card)', color: 'var(--text)' }}
-                />
+                <textarea className="input" rows={4} placeholder="Write a reply to the student..." value={reply} onChange={e => setReply(e.target.value)} style={{ background: 'var(--card)', color: 'var(--text)' }} />
                 <div className="row" style={{ justifyContent:'flex-end' }}>
                   <button className="btn brand" onClick={handleReply} disabled={sending}>
                     {sending ? 'Sending...' : 'Update Reply'}
@@ -307,9 +188,7 @@ export default function ComplaintDetails() {
                 </div>
               </div>
             ) : (
-              <div style={{ color:'var(--text)', lineHeight:1.5 }}>
-                {item.admin_remark}
-              </div>
+              <div style={{ color:'var(--text)', lineHeight:1.5 }}>{item.admin_remark}</div>
             )}
           </motion.div>
         )}
