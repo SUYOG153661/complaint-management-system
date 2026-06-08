@@ -13,6 +13,7 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [signedImageUrl, setSignedImageUrl] = useState(null)
 
   useEffect(() => {
     async function fetchOne() {
@@ -23,11 +24,43 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
+        if (data.image_url) {
+          await getSignedUrl(data.image_url)
+        }
       }
       setLoading(false)
     }
     fetchOne()
   }, [id])
+
+  async function getSignedUrl(publicUrl) {
+    try {
+      // Extract the file path from the public URL
+      let path = publicUrl
+      if (publicUrl.includes('/storage/v1/object/public/')) {
+        path = publicUrl.split('/storage/v1/object/public/')[1]
+        path = path.slice(path.indexOf('/') + 1) // Remove bucket name from path
+      }
+
+      console.log('Getting signed URL for path:', path)
+      
+      // Get signed URL valid for 24 hours
+      const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 86400)
+
+      if (error) {
+        console.error('Error getting signed URL:', error)
+        setSignedImageUrl(publicUrl) // Fallback to public URL
+      } else {
+        console.log('Signed URL obtained:', data.signedUrl)
+        setSignedImageUrl(data.signedUrl)
+      }
+    } catch (err) {
+      console.error('Error in getSignedUrl:', err)
+      setSignedImageUrl(publicUrl) // Fallback
+    }
+  }
 
   async function handleReply() {
     setSending(true)
@@ -218,7 +251,7 @@ export default function ComplaintDetails() {
           {displayDescription}
         </motion.div>
         
-        {item.image_url && (
+        {signedImageUrl && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -228,7 +261,7 @@ export default function ComplaintDetails() {
           >
             <strong>Attachment</strong>
             <img 
-              src={item.image_url} 
+              src={signedImageUrl} 
               alt="Complaint attachment" 
               style={{ 
                 maxWidth: '100%', 
@@ -239,26 +272,7 @@ export default function ComplaintDetails() {
                 border: '1px solid #1e293b',
                 cursor: 'pointer'
               }} 
-              onClick={() => window.open(item.image_url, '_blank')}
-              onError={(e) => {
-                console.log('Image load error, trying fallback...')
-                e.target.style.display = 'none'
-                const fallback = document.createElement('a')
-                fallback.href = item.image_url
-                fallback.target = '_blank'
-                fallback.rel = 'noreferrer'
-                fallback.textContent = '📎 Open Attachment'
-                fallback.style.display = 'inline-flex'
-                fallback.style.alignItems = 'center'
-                fallback.style.gap = '8px'
-                fallback.style.padding = '12px 20px'
-                fallback.style.background = 'var(--accent)'
-                fallback.style.color = 'white'
-                fallback.style.borderRadius = '8px'
-                fallback.style.textDecoration = 'none'
-                fallback.style.fontWeight = '500'
-                e.target.parentNode.appendChild(fallback)
-              }}
+              onClick={() => window.open(signedImageUrl, '_blank')}
             />
           </motion.div>
         )}
