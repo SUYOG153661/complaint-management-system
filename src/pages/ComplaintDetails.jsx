@@ -227,25 +227,39 @@ export default function ComplaintDetails() {
             style={{ gap: 8 }}
           >
             <strong>Attachment</strong>
-            <a 
-              href={item.image_url} 
-              target="_blank" 
-              rel="noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: 'var(--accent)',
-                color: 'white',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '500',
+            <img 
+              src={item.image_url} 
+              alt="Complaint attachment" 
+              style={{ 
+                maxWidth: '100%', 
+                borderRadius: '12px', 
+                maxHeight: '600px', 
+                objectFit: 'contain', 
+                background: '#0f172a', 
+                border: '1px solid #1e293b',
                 cursor: 'pointer'
+              }} 
+              onClick={() => window.open(item.image_url, '_blank')}
+              onError={(e) => {
+                console.log('Image load error, trying fallback...')
+                e.target.style.display = 'none'
+                const fallback = document.createElement('a')
+                fallback.href = item.image_url
+                fallback.target = '_blank'
+                fallback.rel = 'noreferrer'
+                fallback.textContent = '📎 Open Attachment'
+                fallback.style.display = 'inline-flex'
+                fallback.style.alignItems = 'center'
+                fallback.style.gap = '8px'
+                fallback.style.padding = '12px 20px'
+                fallback.style.background = 'var(--accent)'
+                fallback.style.color = 'white'
+                fallback.style.borderRadius = '8px'
+                fallback.style.textDecoration = 'none'
+                fallback.style.fontWeight = '500'
+                e.target.parentNode.appendChild(fallback)
               }}
-            >
-              📎 Open Attachment
-            </a>
+            />
           </motion.div>
         )}
 
