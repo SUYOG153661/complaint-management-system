@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { motion } from 'framer-motion'
-import { PhoneCall, MapPin, AlertTriangle } from 'lucide-react'
+import { PhoneCall, MapPin, AlertTriangle, FileImage, FileText } from 'lucide-react'
 
 export default function ComplaintDetails() {
   const { id } = useParams()
@@ -13,7 +13,8 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
-  const [imageError, setImageError] = useState(false)
+  const [isImage, setIsImage] = useState(true)
+  const [imageLoadError, setImageLoadError] = useState(false)
 
   useEffect(() => {
     async function fetchOne() {
@@ -24,7 +25,12 @@ export default function ComplaintDetails() {
       else {
         setItem(data)
         setReply(data.admin_remark || '')
-        setImageError(false)
+        setImageLoadError(false)
+        
+        if (data.image_url) {
+          const url = data.image_url.toLowerCase()
+          setIsImage(url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif') || url.endsWith('.webp') || url.endsWith('.bmp'))
+        }
       }
       setLoading(false)
     }
@@ -150,30 +156,64 @@ export default function ComplaintDetails() {
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="col" style={{ gap: 8 }}>
             <strong>Attachment</strong>
             
-            {!imageError ? (
-              <img 
-                src={item.image_url} 
-                alt="Complaint attachment" 
-                style={{ width: '100%', borderRadius: '12px', maxHeight: '600px', objectFit: 'contain', cursor: 'pointer', background: '#1e293b', border: '1px solid #334155' }}
-                onClick={() => window.open(item.image_url, '_blank')}
-                onError={() => {
-                  console.log('Image failed to load, showing fallback link');
-                  setImageError(true);
-                }}
-              />
-            ) : (
-              <div style={{ padding: '40px', textAlign: 'center', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' }}>
-                <a 
-                  href={item.image_url} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  style={{ color: '#60a5fa', textDecoration: 'none', fontSize: '18px', fontWeight: '500' }}
-                >
-                  🖼️ Click here to view the image
-                </a>
-                <p style={{ color: '#94a3b8', marginTop: '10px', fontSize: '14px' }}>Image will open in a new tab</p>
-              </div>
-            )}
+            <div 
+              style={{ 
+                width: '100%', 
+                background: '#1e293b', 
+                borderRadius: '12px', 
+                border: '1px solid #334155',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                padding: '20px',
+                textAlign: 'center'
+              }}
+              onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
+            >
+              {isImage && !imageLoadError ? (
+                <div>
+                  <img 
+                    src={item.image_url} 
+                    alt="Complaint attachment" 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '500px', 
+                      objectFit: 'contain',
+                      borderRadius: '8px'
+                    }}
+                    onError={() => setImageLoadError(true)}
+                  />
+                  <p style={{ color: '#94a3b8', marginTop: '10px', fontSize: '14px' }}>Click to open in new tab</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ 
+                      width: '80px', 
+                      height: '80px', 
+                      background: 'rgba(96, 165, 250, 0.1)', 
+                      borderRadius: '16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center' 
+                    }}>
+                      {isImage ? (
+                        <FileImage size={40} color="#60a5fa" />
+                      ) : (
+                        <FileText size={40} color="#60a5fa" />
+                      )}
+                    </div>
+                    <div>
+                      <p style={{ color: 'white', fontSize: '16px', fontWeight: '500', margin: '0' }}>
+                        {isImage ? 'Image Attachment' : 'File Attachment'}
+                      </p>
+                      <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '4px', margin: '0' }}>
+                        Click to view file in new tab
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
