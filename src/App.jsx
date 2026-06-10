@@ -8,6 +8,7 @@ import Landing from './pages/Landing.jsx'
 import UserDashboard from './pages/UserDashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import ComplaintDetails from './pages/ComplaintDetails.jsx'
+import FAQ from './pages/FAQ.jsx'
 import { Sun, Moon, Wifi, WifiOff } from 'lucide-react'
 import { hasSupabaseConfig, supabase, checkSupabaseConnection } from './supabaseClient.js'
 import Toast from './components/Toast.jsx'
@@ -65,6 +66,7 @@ function Nav({ theme, toggleTheme, dbStatus, socketStatus }) {
 
           <div className="hidden md:flex items-center gap-6 absolute-center">
             <Link to="/" className="nav-item text-muted-foreground hover:text-foreground transition-colors font-medium">Home</Link>
+            <Link to="/faq" className="nav-item text-muted-foreground hover:text-foreground transition-colors font-medium">FAQ</Link>
             {!user && (
               <>
                 <a href="#features" className="nav-item text-muted-foreground hover:text-foreground transition-colors font-medium">Features</a>
@@ -216,6 +218,7 @@ export default function App() {
             >
               <Routes location={location} key={location.pathname}>
                 <Route path="/" element={<Landing />} />
+                <Route path="/faq" element={<FAQ />} />
                 <Route path="/login" element={<Login mode="student" />} />
                 <Route path="/admin/login" element={<Login mode="admin" />} />
                 <Route path="/register" element={<Register />} />
@@ -247,6 +250,7 @@ export default function App() {
                   <h3 className="font-semibold mb-4">Quick Links</h3>
                   <ul className="space-y-2 text-primary-foreground/70">
                     <li><a href="#home" className="hover:text-primary-foreground transition-colors">Home</a></li>
+                    <li><Link to="/faq" className="hover:text-primary-foreground transition-colors">FAQ</Link></li>
                     <li><a href="#features" className="hover:text-primary-foreground transition-colors">Features</a></li>
                     <li><a href="#about" className="hover:text-primary-foreground transition-colors">About</a></li>
                     <li><Link to="/login" className="hover:text-primary-foreground transition-colors">Login</Link></li>
@@ -257,7 +261,7 @@ export default function App() {
                   <ul className="space-y-3 text-primary-foreground/70">
                     <li className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 footer-icon" />
-                      Sterling Collage , Main Block
+                      Sterling Institute of Management System, Nerul
                     </li>
                     <li className="flex items-center gap-2">
                       <Phone className="w-4 h-4 footer-icon" />

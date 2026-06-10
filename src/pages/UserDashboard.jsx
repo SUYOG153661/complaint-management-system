@@ -8,7 +8,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Sparkles as SparklesIcon, Trash2 as TrashIcon, BrainCircuit, Wand2, Sun, Moon, PhoneCall, MapPin, AlertTriangle, Search, Filter, Zap } from 'lucide-react'
 import { summarizeComplaint, analyzeSentiment } from '../utils/ai'
 
-const categories = ['Hostel', 'Electricity', 'Academic', 'Cleaning', 'Administrative', 'Facilities', 'Faculty', 'Library', 'Transportation', 'Ragging', 'Other']
 const statuses = ['Pending', 'In Progress', 'Resolved']
 
 const GraduationCap = ({ className }) => (
@@ -42,6 +41,7 @@ export default function UserDashboard() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [items, setItems] = useState([])
+  const [categories, setCategories] = useState(['Academic', 'Administrative', 'Facilities', 'Faculty', 'Hostel', 'Library', 'Transportation', 'Ragging', 'Other'])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -54,6 +54,7 @@ export default function UserDashboard() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [categoryFilter, setCategoryFilter] = useState('All')
+  const [sortBy, setSortBy] = useState('created_at')
   const [editForm, setEditForm] = useState({
     name: '',
     student_id: '',
@@ -230,6 +231,24 @@ export default function UserDashboard() {
     navigate('/login')
   }
 
+  async function fetchCategories() {
+    console.log('UserDashboard fetching categories...')
+    try {
+      const { data, error } = await supabase.from('categories').select('name').order('name')
+      console.log('UserDashboard categories result:', { data, error })
+      
+      if (error) {
+        console.error('UserDashboard categories error:', error)
+        // Keep default categories
+      } else if (data && data.length > 0) {
+        setCategories(data.map(c => c.name))
+      }
+    } catch (err) {
+      console.error('UserDashboard categories fetch failed:', err)
+      // Keep default categories
+    }
+  }
+
   async function fetchAll(background = false) {
     setError('')
     if (!background) setLoading(true)
@@ -240,6 +259,10 @@ export default function UserDashboard() {
       .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setItems(data ?? [])
+    
+    // Fetch categories
+    await fetchCategories()
+    
     if (!background) setLoading(false)
   }
 
@@ -316,8 +339,25 @@ export default function UserDashboard() {
       )
     }
     
+    // Sort the filtered items
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'priority':
+          const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 }
+          return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1)
+        case 'category':
+          return a.category.localeCompare(b.category)
+        case 'status':
+          const statusOrder = { 'Pending': 0, 'In Progress': 1, 'Resolved': 2 }
+          return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0)
+        case 'created_at':
+        default:
+          return new Date(b.created_at) - new Date(a.created_at)
+      }
+    })
+    
     return filtered
-  }, [items, statusFilter, categoryFilter, search])
+  }, [items, statusFilter, categoryFilter, search, sortBy])
 
   const recent = useMemo(() => filteredItems.slice(0, 3), [filteredItems])
 
@@ -506,6 +546,22 @@ export default function UserDashboard() {
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
+                  
+                  <div className="filter-box" style={{ borderLeft: '4px solid var(--warning)' }}>
+                    <div className="icon-box" style={{ background: 'rgba(var(--warning-rgb), 0.1)', padding: 6, borderRadius: 8, display: 'flex' }}>
+                      <Filter size={16} style={{ color: 'var(--warning)' }} />
+                    </div>
+                    <select
+                      className="toolbar-select"
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                    >
+                      <option value="created_at">Sort: Newest</option>
+                      <option value="priority">Sort: Priority</option>
+                      <option value="category">Sort: Category</option>
+                      <option value="status">Sort: Status</option>
+                    </select>
+                  </div>
                 </div>
                 
                 <ComplaintList items={filteredItems} onUpdate={fetchAll} />
@@ -585,6 +641,22 @@ export default function UserDashboard() {
                     >
                       <option value="All">All Categories</option>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  
+                  <div className="filter-box" style={{ borderLeft: '4px solid var(--warning)' }}>
+                    <div className="icon-box" style={{ background: 'rgba(var(--warning-rgb), 0.1)', padding: 6, borderRadius: 8, display: 'flex' }}>
+                      <Filter size={16} style={{ color: 'var(--warning)' }} />
+                    </div>
+                    <select
+                      className="toolbar-select"
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                    >
+                      <option value="created_at">Sort: Newest</option>
+                      <option value="priority">Sort: Priority</option>
+                      <option value="category">Sort: Category</option>
+                      <option value="status">Sort: Status</option>
                     </select>
                   </div>
                 </div>
@@ -697,17 +769,39 @@ export default function UserDashboard() {
                           </div>
                         </div>
 
-                        {c.admin_remark && (
+                        {(c.admin_remark || c.admin_image_url) && (
                           <div style={{ marginTop:12, padding:'12px', background:'var(--bg)', borderRadius:8, border:'1px solid var(--border)' }}>
                             <div className="row" style={{ gap:8, alignItems:'center', marginBottom:4 }}>
                               <span className="icon">💬</span>
                               <strong>Admin Message</strong>
                             </div>
-                            <div className="text-sm muted">{c.admin_remark}</div>
+                            {c.admin_remark && <div className="text-sm muted" style={{ marginBottom: 8 }}>{c.admin_remark}</div>}
+                            {c.admin_image_url && (
+                              <div 
+                                style={{ 
+                                  width: '100%', 
+                                  background: '#1e293b', 
+                                  borderRadius: '12px', 
+                                  border: '1px solid #334155',
+                                  overflow: 'hidden',
+                                  cursor: 'pointer',
+                                  padding: '12px',
+                                  textAlign: 'center'
+                                }}
+                                onClick={() => window.open(c.admin_image_url, '_blank', 'noopener,noreferrer')}
+                              >
+                                <img 
+                                  src={c.admin_image_url} 
+                                  alt="Admin Attachment"
+                                  style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px' }}
+                                />
+                                <p style={{ color: '#94a3b8', marginTop: '8px', fontSize: '12px' }}>Click to open in new tab</p>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {(c.priority === 'High' || c.category === 'Ragging') && (
+                        {c.category === 'Ragging' && (
                           <div style={{ marginTop:12, padding:'12px', background:'rgba(var(--danger-rgb), 0.1)', borderRadius:8, border:'1px solid rgba(var(--danger-rgb), 0.3)' }}>
                             <div className="row" style={{ gap:8, alignItems:'center', marginBottom:8, color:'var(--danger)' }}>
                               <AlertTriangle size={16} />

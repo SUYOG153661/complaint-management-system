@@ -5,7 +5,7 @@ import {
   Sparkles, BrainCircuit, BarChart3, TrendingUp, AlertTriangle, 
   MessageSquare, Wand2, Lightbulb, ThumbsUp, ThumbsDown, Minus,
   Brain, Zap, ShieldAlert, CheckCircle2, Activity, Users, ClipboardList, Clock, ArrowUpRight, Search, Filter, Plus, ChevronRight,
-  X, Send, Mic, MicOff, Sun, Moon, Download, Bot, ShieldCheck, Terminal, PhoneCall, MapPin, Building2, Trash2
+  X, Send, Mic, MicOff, Sun, Moon, Download, Bot, ShieldCheck, Terminal, PhoneCall, MapPin, Building2, Trash2, Tag
 } from 'lucide-react'
 import { analyzeSentiment, summarizeComplaint, suggestRemark, predictCategory, suggestPriority, getAiResponse } from '../utils/ai'
 import { useAuth } from '../AuthContext'
@@ -16,11 +16,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 const COLORS = ['#4f46e5', '#7c3aed', '#16a34a', '#f59e0b', '#dc2626', '#0891b2', '#ea580c', '#db2777', '#ca8a04', '#65a30d']
 
 const statuses = ['Pending', 'In Progress', 'Resolved']
-const categories = ['Hostel', 'Electricity', 'Academic', 'Cleaning', 'Administrative', 'Facilities', 'Faculty', 'Library', 'Transportation', 'Ragging', 'Other']
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, isAdmin } = useAuth()
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -39,6 +38,8 @@ export default function AdminDashboard() {
   const [priorityFilter, setPriorityFilter] = useState('All')
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [departmentFilter, setDepartmentFilter] = useState('All')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [selectedIds, setSelectedIds] = useState([])
   const [assignments, setAssignments] = useState({})
   const [statusUpdates, setStatusUpdates] = useState({})
   const [aiChatOpen, setAiChatOpen] = useState(false)
@@ -58,6 +59,19 @@ export default function AdminDashboard() {
   const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'light')
   const [departments, setDepartments] = useState([])
   const [newDepartment, setNewDepartment] = useState('')
+  // Default categories as fallback
+  const [categories, setCategories] = useState([
+    { id: '1', name: 'Academic', created_at: new Date().toISOString() },
+    { id: '2', name: 'Administrative', created_at: new Date().toISOString() },
+    { id: '3', name: 'Facilities', created_at: new Date().toISOString() },
+    { id: '4', name: 'Faculty', created_at: new Date().toISOString() },
+    { id: '5', name: 'Hostel', created_at: new Date().toISOString() },
+    { id: '6', name: 'Library', created_at: new Date().toISOString() },
+    { id: '7', name: 'Transportation', created_at: new Date().toISOString() },
+    { id: '8', name: 'Ragging', created_at: new Date().toISOString() },
+    { id: '9', name: 'Other', created_at: new Date().toISOString() }
+  ])
+  const [newCategory, setNewCategory] = useState('')
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
@@ -212,6 +226,66 @@ export default function AdminDashboard() {
     }
   }
 
+  async function addCategory() {
+    if (!newCategory.trim()) {
+      notify('Error', 'Please enter a category name', 'error')
+      return
+    }
+
+    const name = newCategory.trim()
+    
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .insert({ name })
+      
+      if (error) throw error
+      
+      setNewCategory('')
+      await fetchCategories()
+      notify('Success', `Category "${name}" added!`, 'success')
+    } catch (err) {
+      notify('Error', err.message, 'error')
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      await fetchCategories()
+      notify('Success', `Category "${name}" removed!`, 'success')
+    } catch (err) {
+      notify('Error', err.message, 'error')
+    }
+  }
+
+  async function fetchCategories() {
+    console.log('AdminDashboard fetching categories...')
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name')
+      console.log('AdminDashboard categories result:', { data, error })
+      
+      if (error) {
+        console.error('AdminDashboard categories error:', error)
+        // Keep fallback categories
+      } else if (data && data.length > 0) {
+        setCategories(data)
+      }
+    } catch (err) {
+      console.error('AdminDashboard categories fetch failed:', err)
+      // Keep fallback categories
+    }
+  }
+
   async function fetchDepartments() {
     const { data, error } = await supabase
       .from('departments')
@@ -242,8 +316,9 @@ export default function AdminDashboard() {
       setStatusUpdates(ssel)
     }
     
-    // Fetch departments
+    // Fetch departments and categories
     await fetchDepartments()
+    await fetchCategories()
     
     if (!background) setLoading(false)
   }
@@ -310,8 +385,10 @@ export default function AdminDashboard() {
         setStudents([])
       }
     }
-    fetchStudents()
-  }, [])
+    if (isAdmin) {
+      fetchStudents()
+    }
+  }, [isAdmin])
 
   useEffect(() => {
     const channel = supabase.channel('complaints-admin')
@@ -402,6 +479,50 @@ export default function AdminDashboard() {
     }
   }
 
+  const toggleSelectAll = (listItems) => {
+    if (selectedIds.length === listItems.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(listItems.map(c => c.id))
+    }
+  }
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  async function bulkUpdateStatus(newStatus) {
+    if (selectedIds.length === 0) return
+    try {
+      const updates = selectedIds.map(id => 
+        supabase.from('complaints').update({ status: newStatus }).eq('id', id)
+      )
+      await Promise.all(updates)
+      notify('Bulk Update Complete', `Updated ${selectedIds.length} complaints to ${newStatus}`, 'success')
+      setSelectedIds([])
+      await fetchAll(true)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function bulkUpdatePriority(newPriority) {
+    if (selectedIds.length === 0) return
+    try {
+      const updates = selectedIds.map(id => 
+        supabase.from('complaints').update({ priority: newPriority }).eq('id', id)
+      )
+      await Promise.all(updates)
+      notify('Bulk Update Complete', `Updated ${selectedIds.length} complaints to ${newPriority} priority`, 'success')
+      setSelectedIds([])
+      await fetchAll(true)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const sectionItems = useMemo(() => {
     let filtered = items
     
@@ -440,17 +561,38 @@ export default function AdminDashboard() {
       )
     }
     
+    // Sort the filtered items
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'priority':
+          const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 }
+          return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1)
+        case 'category':
+          return a.category.localeCompare(b.category)
+        case 'status':
+          const statusOrder = { 'Pending': 0, 'In Progress': 1, 'Resolved': 2 }
+          return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0)
+        case 'created_at':
+        default:
+          return new Date(b.created_at) - new Date(a.created_at)
+      }
+    })
+    
     return filtered
-  }, [items, section, statusFilter, priorityFilter, categoryFilter, departmentFilter, search])
+  }, [items, section, statusFilter, priorityFilter, categoryFilter, departmentFilter, search, sortBy])
 
   const chart = useMemo(() => {
     const m = {}
-    categories.forEach(cat => { m[cat] = 0 })
+    categories.forEach(cat => { m[cat.name] = 0 })
     items.forEach(c => { if (m[c.category] !== undefined) m[c.category]++ })
-    const arr = categories.map(cat => ({ cat, count: m[cat] }))
+    const arr = categories.map(cat => ({ cat: cat.name, count: m[cat.name] }))
     const max = Math.max(1, ...arr.map(x => x.count))
     return { arr, max }
-  }, [items])
+  }, [items, categories])
+
+  const uniqueCategories = useMemo(() => {
+    return categories.map(c => c.name).sort()
+  }, [categories])
 
   const uniqueDepartments = useMemo(() => {
     return departments.map(d => d.name).sort()
@@ -551,14 +693,14 @@ export default function AdminDashboard() {
     const byCat = (() => {
       const counts = {}
       const resolvedCounts = {}
-      categories.forEach(cat => { counts[cat] = 0; resolvedCounts[cat] = 0 })
+      uniqueCategories.forEach(cat => { counts[cat] = 0; resolvedCounts[cat] = 0 })
       items.forEach(c => { 
         if (counts[c.category] !== undefined) {
           counts[c.category]++
           if (c.status === 'Resolved') resolvedCounts[c.category]++
         }
       })
-      const arr = categories.map(cat => {
+      const arr = uniqueCategories.map(cat => {
         const count = counts[cat]
         const resolved = resolvedCounts[cat]
         const pct = total > 0 ? Math.round((count / total) * 100) : 0
@@ -605,7 +747,7 @@ export default function AdminDashboard() {
     }))
     const maxMonthly = Math.max(1, ...monthly.map(x => Math.max(x.submitted, x.resolved)))
     return { total, resolutionRate, avgDays, satisfaction, byCat, monthly, maxMonthly }
-  }, [items])
+  }, [items, uniqueCategories])
 
   const studentStats = useMemo(() => {
     const total = studentsCount || students.length
@@ -769,6 +911,7 @@ export default function AdminDashboard() {
             {[
               { id: 'dashboard', icon: <BarChart3 size={18} />, label: 'Overview', short: 'Overview' },
               { id: 'list', icon: <ClipboardList size={18} />, label: 'Complaints', short: 'Complaints' },
+              { id: 'categories', icon: <Tag size={18} />, label: 'Categories', short: 'Categories' },
               { id: 'departments', icon: <Building2 size={18} />, label: 'Departments', short: 'Depts' },
               { id: 'ai-insights', icon: <BrainCircuit size={18} />, label: 'AI Insights', short: 'AI' },
               { id: 'priority', icon: <Zap size={18} />, label: 'Priorities', short: 'Priority' },
@@ -1310,7 +1453,7 @@ export default function AdminDashboard() {
                         onChange={e => setCategoryFilter(e.target.value)}
                       >
                         <option value="All">All Categories</option>
-                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
                     </div>
                     <div className="filter-box" style={{ borderLeft: '4px solid var(--success)' }}>
@@ -1326,15 +1469,74 @@ export default function AdminDashboard() {
                         {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
                       </select>
                     </div>
+                    <div className="filter-box" style={{ borderLeft: '4px solid var(--muted)' }}>
+                      <div className="icon-box" style={{ background: 'rgba(0,0,0,0.1)', padding: 6, borderRadius: 8, display: 'flex' }}>
+                        <Filter size={16} style={{ color: 'var(--muted)' }} />
+                      </div>
+                      <select
+                        className="toolbar-select"
+                        value={sortBy}
+                        onChange={e => setSortBy(e.target.value)}
+                      >
+                        <option value="created_at">Sort: Newest</option>
+                        <option value="priority">Sort: Priority</option>
+                        <option value="category">Sort: Category</option>
+                        <option value="status">Sort: Status</option>
+                      </select>
+                    </div>
                   </div>
                   {(() => {
                     const listItems = sectionItems
                     return (
                       <div className="table-card">
-                        <div className="row" style={{ justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg)' }}>
-                          <strong>Complaints ({listItems.length})</strong>
+                        <div className="row" style={{ justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg)', flexWrap:'wrap', gap:'8px' }}>
+                          <div className="row" style={{ gap:'8px', alignItems:'center' }}>
+                            <label className="row" style={{ alignItems:'center', gap:'8px' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={listItems.length > 0 && selectedIds.length === listItems.length}
+                                onChange={() => toggleSelectAll(listItems)}
+                                style={{ width:'16px', height:'16px', cursor:'pointer' }}
+                              />
+                              <strong>Complaints ({listItems.length})</strong>
+                            </label>
+                            {selectedIds.length > 0 && (
+                              <div className="row" style={{ gap:'8px', marginLeft:'16px', alignItems:'center' }}>
+                                <span className="text-muted-foreground text-sm">{selectedIds.length} selected</span>
+                                <select 
+                                  className="toolbar-select"
+                                  style={{ padding:'6px 10px', fontSize:'12px' }}
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      bulkUpdateStatus(e.target.value)
+                                    }
+                                  }}
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>Bulk Status</option>
+                                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <select 
+                                  className="toolbar-select"
+                                  style={{ padding:'6px 10px', fontSize:'12px' }}
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      bulkUpdatePriority(e.target.value)
+                                    }
+                                  }}
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>Bulk Priority</option>
+                                  <option value="Low">Low</option>
+                                  <option value="Medium">Medium</option>
+                                  <option value="High">High</option>
+                                </select>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="list-header" style={{ display:'grid', gridTemplateColumns:'0.8fr 1.2fr 1fr 2fr 0.6fr 1fr 1fr 1fr auto' }}>
+                        <div className="list-header" style={{ display:'grid', gridTemplateColumns:'0.5fr 0.8fr 1.2fr 1fr 2fr 0.6fr 1fr 1fr 1fr auto' }}>
+                          <div></div>
                           <div>ID</div>
                           <div>Student</div>
                           <div>Category</div>
@@ -1356,7 +1558,15 @@ export default function AdminDashboard() {
                               key={c.id} 
                               style={{ borderBottom:'1px solid var(--border)', background:'var(--card)' }}
                             >
-                              <div className="list-row" style={{ display:'grid', gridTemplateColumns:'0.8fr 1.2fr 1fr 2fr 0.6fr 1fr 1fr 1fr auto', borderBottom:'none' }}>
+                              <div className="list-row" style={{ display:'grid', gridTemplateColumns:'0.5fr 0.8fr 1.2fr 1fr 2fr 0.6fr 1fr 1fr 1fr auto', borderBottom:'none' }}>
+                                <div className="list-cell">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedIds.includes(c.id)}
+                                    onChange={() => toggleSelect(c.id)}
+                                    style={{ width:'16px', height:'16px', cursor:'pointer' }}
+                                  />
+                                </div>
                                 <div className="list-cell">{String(c.id)}</div>
                                 <div className="list-cell">
                                   <div className="row" style={{ gap:8, alignItems:'center' }}>
@@ -1410,7 +1620,7 @@ export default function AdminDashboard() {
                                     <button className="btn secondary small" onClick={() => updateStatus(c.id, 'In Progress')}>Update</button>
                                     <button className="btn brand small" onClick={() => updateStatus(c.id, 'Resolved')}>Resolve</button>
                                   </div>
-                                  {(c.priority === 'High' || c.category === 'Ragging') && (
+                                  {c.category === 'Ragging' && (
                                     <div className="row" style={{ gap: 8, marginTop: 4 }}>
                                       <a href="tel:100" className="btn danger small" title="Call Police" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px' }}>
                                         <PhoneCall size={12} /> Call
@@ -1601,6 +1811,97 @@ export default function AdminDashboard() {
                       </div>
                     )
                   })()}
+                </>
+              ) : section === 'categories' ? (
+                <>
+                  <div className="row" style={{ justifyContent:'space-between' }}>
+                    <div className="col">
+                      <strong>Manage Categories</strong>
+                      <span className="muted">Add or remove complaint categories</span>
+                    </div>
+                  </div>
+
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="card"
+                    style={{ marginBottom: 20 }}
+                  >
+                    <div className="row" style={{ gap: 12, alignItems: 'flex-end' }}>
+                      <div className="col" style={{ flex: 1, gap: 6 }}>
+                        <label className="label" style={{ margin: 0 }}>New Category Name</label>
+                        <div className="input-group-modern">
+                          <input
+                            className="input-modern"
+                            placeholder="Enter category name"
+                            value={newCategory}
+                            onChange={e => setNewCategory(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addCategory()}
+                          />
+                        </div>
+                      </div>
+                      <button className="btn brand" onClick={addCategory}>
+                        <Plus size={18} />
+                        <span>Add Category</span>
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="table-card"
+                  >
+                    <div className="row" style={{ justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg)' }}>
+                      <strong>Categories ({categories.length})</strong>
+                    </div>
+                    <div className="list-header" style={{ display:'grid', gridTemplateColumns:'2fr 1fr auto' }}>
+                      <div>Category Name</div>
+                      <div>Created At</div>
+                      <div>Actions</div>
+                    </div>
+                    {categories.map((cat, idx) => (
+                      <motion.div 
+                        key={cat.id} 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + idx * 0.03 }}
+                        className="list-row" 
+                        style={{ display:'grid', gridTemplateColumns:'2fr 1fr auto' }}
+                      >
+                        <div className="list-cell">
+                          <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                            <div className="icon-box" style={{ background: 'rgba(var(--accent-rgb), 0.1)', padding: 8, borderRadius: 10, display: 'flex' }}>
+                              <Tag size={18} style={{ color: 'var(--accent)' }} />
+                            </div>
+                            <strong>{cat.name}</strong>
+                          </div>
+                        </div>
+                        <div className="list-cell">{new Date(cat.created_at).toLocaleDateString()}</div>
+                        <div className="list-cell">
+                          <button 
+                            className="btn danger btn-sm" 
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete "${cat.name}"?`)) {
+                                deleteCategory(cat.id, cat.name);
+                              }
+                            }}
+                          >
+                            <Trash2 size={16} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                    {categories.length === 0 && (
+                      <div className="col" style={{ padding: '40px', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <Tag size={40} className="muted" />
+                        <p className="muted text-center">No categories yet. Add your first category above!</p>
+                      </div>
+                    )}
+                  </motion.div>
                 </>
               ) : section === 'departments' ? (
                 <>

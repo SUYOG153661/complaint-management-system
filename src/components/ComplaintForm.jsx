@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, BUCKET } from '../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { predictCategory, suggestPriority, improveDescription, generateDescription } from '../utils/ai'
-import { Sparkles, BrainCircuit, Wand2, MapPin, AlertTriangle } from 'lucide-react'
+import { Sparkles, BrainCircuit, Wand2, MapPin, AlertTriangle, Mic, MicOff } from 'lucide-react'
 
-const categories = ['Academic', 'Administrative', 'Facilities', 'Faculty', 'Hostel', 'Library', 'Transportation', 'Ragging', 'Other']
 const priorities = ['Low', 'Medium', 'High']
 
 export default function ComplaintForm({ onCreated }) {
   const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState(categories[0])
+  const [categories, setCategories] = useState(['Academic', 'Administrative', 'Facilities', 'Faculty', 'Hostel', 'Library', 'Transportation', 'Ragging', 'Other'])
+  const [category, setCategory] = useState('Academic')
   const [priority, setPriority] = useState('Medium')
   const [file, setFile] = useState(null)
   const [locationLink, setLocationLink] = useState('')
@@ -20,6 +20,75 @@ export default function ComplaintForm({ onCreated }) {
   const [loading, setLoading] = useState(false)
   const [aiAnalyzing, setAiAnalyzing] = useState(false)
   const [isImproving, setIsImproving] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [recognition, setRecognition] = useState(null)
+  const textareaRef = useRef(null)
+
+  // Fetch categories
+  useEffect(() => {
+    async function fetchCategories() {
+      console.log('Fetching categories...')
+      try {
+        const { data, error } = await supabase.from('categories').select('name').order('name')
+        console.log('Categories fetch result:', { data, error })
+        
+        if (error) {
+          console.error('Error fetching categories:', error)
+          // Keep default categories
+        } else if (data && data.length > 0) {
+          const categoryNames = data.map(c => c.name)
+          console.log('Setting categories:', categoryNames)
+          setCategories(categoryNames)
+          if (!category || !categoryNames.includes(category)) {
+            setCategory(categoryNames[0])
+          }
+        }
+      } catch (err) {
+        console.error('Categories fetch failed:', err)
+        // Keep default categories
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  // Initialize speech recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition()
+      rec.continuous = true
+      rec.interimResults = true
+      rec.lang = 'en-US'
+      
+      rec.onresult = (event) => {
+        let transcript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript
+        }
+        setDescription(prev => prev + transcript)
+      }
+      
+      rec.onerror = (event) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+      
+      rec.onend = () => {
+        setIsListening(false)
+      }
+      
+      setRecognition(rec)
+    }
+  }, [])
+
+  // Auto-grow textarea
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.max(textarea.scrollHeight, 200) + 'px'
+    }
+  }, [description])
 
   // AI suggestion logic
   useEffect(() => {
@@ -53,6 +122,17 @@ export default function ComplaintForm({ onCreated }) {
       setDescription(result)
       setIsImproving(false)
     }, 1200)
+  }
+
+  const toggleVoiceInput = () => {
+    if (!recognition) return
+    if (isListening) {
+      recognition.stop()
+      setIsListening(false)
+    } else {
+      recognition.start()
+      setIsListening(true)
+    }
   }
 
   const handleGetLocation = () => {
@@ -164,36 +244,100 @@ export default function ComplaintForm({ onCreated }) {
         </div>
         <span className="muted">Fill out the form below to submit your complaint. All fields marked with * are required.</span>
       </div>
+
       <label className="label">Category *</label>
       <select className="input" value={category} onChange={e=>setCategory(e.target.value)}>
         {categories.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
       <label className="label">Subject *</label>
-      <input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Brief description of your complaint" required />
+      <input 
+        className="input" 
+        value={title} 
+        onChange={e=>setTitle(e.target.value)} 
+        placeholder="Brief description of your complaint..." 
+        style={{ minHeight: '50px', fontSize: '16px' }} 
+        required 
+      />
       <div className="col">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <label className="label">Description *</label>
-          <button 
-            type="button"
-            onClick={handleImproveDescription}
-            disabled={isImproving}
-            className="text-xs flex items-center gap-1 text-accent hover:underline disabled:opacity-50"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            {isImproving ? (
-              <>
-                <Sparkles size={12} className="animate-spin" />
-                <span>Improving...</span>
-              </>
-            ) : (
-              <>
-                <Wand2 size={12} />
-                <span>Help me write this (AI)</span>
-              </>
-            )}
-          </button>
+          <div className="row" style={{ gap:8 }}>
+            <button 
+              type="button"
+              onClick={toggleVoiceInput}
+              disabled={!recognition}
+              className={`flex items-center gap-1 text-xs hover:underline ${isListening ? 'text-danger' : 'text-accent'}`}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              {isListening ? (
+                <>
+                  <MicOff size={12} />
+                  <span>Stop Recording</span>
+                </>
+              ) : (
+                <>
+                  <Mic size={12} />
+                  <span>Speak to Type</span>
+                </>
+              )}
+            </button>
+            <button 
+              type="button"
+              onClick={handleImproveDescription}
+              disabled={isImproving}
+              className="text-xs flex items-center gap-1 text-accent hover:underline disabled:opacity-50"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              {isImproving ? (
+                <>
+                  <Sparkles size={12} className="animate-spin" />
+                  <span>Improving...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 size={12} />
+                  <span>Help me write this (AI)</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-        <textarea className="input" value={description} onChange={e=>setDescription(e.target.value)} placeholder="Provide detailed information about your complaint..." rows={5} required />
+        <div style={{ position:'relative' }}>
+          <textarea 
+            ref={textareaRef}
+            className="input" 
+            value={description} 
+            onChange={e=>setDescription(e.target.value)} 
+            placeholder="Provide detailed information about your complaint..." 
+            rows={8} 
+            style={{ minHeight: '200px', resize: 'none' }}
+            required 
+          />
+          {isListening && (
+            <div style={{ 
+              position:'absolute', 
+              bottom:10, 
+              right:10, 
+              background:'var(--danger)', 
+              color:'white', 
+              padding:'4px 12px', 
+              borderRadius:20, 
+              fontSize:12,
+              display:'flex',
+              alignItems:'center',
+              gap:'6px'
+            }}>
+              <span style={{ 
+                width:8, 
+                height:8, 
+                background:'white', 
+                borderRadius:'50%',
+                animation:'pulse 1.5s ease-in-out infinite'
+              }}></span>
+              Listening...
+            </div>
+          )}
+        </div>
       </div>
       <label className="label">Priority Level *</label>
       <div className="priority-group">
@@ -203,23 +347,36 @@ export default function ComplaintForm({ onCreated }) {
             type="button"
             className={`priority-option ${priority===p?'active':''}`}
             onClick={() => setPriority(p)}
+            style={{
+              backgroundColor: priority === p 
+                ? (p === 'Low' ? 'rgba(16, 185, 129, 0.15)' : p === 'Medium' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)')
+                : 'var(--card)',
+              borderColor: priority === p 
+                ? (p === 'Low' ? 'var(--success)' : p === 'Medium' ? 'var(--warning)' : 'var(--danger)')
+                : 'var(--border)',
+              color: priority === p 
+                ? (p === 'Low' ? 'var(--success)' : p === 'Medium' ? 'var(--warning)' : 'var(--danger)')
+                : 'var(--text)'
+            }}
           >
             <strong>{p}</strong>
-            <span className="muted">{p==='Low'?'Can wait, not urgent':p==='Medium'?'Should be addressed soon':'Urgent, needs immediate attention'}</span>
+            <span className="muted" style={{ color: priority === p ? 'inherit' : 'var(--muted)' }}>
+              {p==='Low'?'Can wait, not urgent':p==='Medium'?'Should be addressed soon':'Urgent, needs immediate attention'}
+            </span>
           </button>
         ))}
       </div>
 
-      <div className="col" style={{ gap: 8, background: (category === 'Ragging' || priority === 'High') ? 'rgba(var(--danger-rgb), 0.1)' : 'var(--bg)', padding: '16px', borderRadius: '12px', border: (category === 'Ragging' || priority === 'High') ? '1px solid rgba(var(--danger-rgb), 0.2)' : '1px dashed var(--border)' }}>
-        <div className="row" style={{ alignItems: 'center', gap: 8, color: (category === 'Ragging' || priority === 'High') ? 'var(--danger)' : 'var(--text)' }}>
-          {(category === 'Ragging' || priority === 'High') ? <AlertTriangle size={18} /> : <MapPin size={18} />}
+      <div className="col" style={{ gap: 8, background: category === 'Ragging' ? 'rgba(var(--danger-rgb), 0.1)' : 'var(--bg)', padding: '16px', borderRadius: '12px', border: category === 'Ragging' ? '1px solid rgba(var(--danger-rgb), 0.2)' : '1px dashed var(--border)' }}>
+        <div className="row" style={{ alignItems: 'center', gap: 8, color: category === 'Ragging' ? 'var(--danger)' : 'var(--text)' }}>
+          {category === 'Ragging' ? <AlertTriangle size={18} /> : <MapPin size={18} />}
           <strong style={{ fontSize: '0.9rem' }}>
-            {(category === 'Ragging' || priority === 'High') ? 'Emergency Location Sharing' : 'Share Location (Optional)'}
+            {category === 'Ragging' ? 'Emergency Location Sharing' : 'Share Location (Optional)'}
           </strong>
         </div>
         <span className="text-xs muted">
-          {(category === 'Ragging' || priority === 'High') 
-            ? 'For high-priority issues or ragging, please share your live location for faster assistance.' 
+          {category === 'Ragging' 
+            ? 'For ragging issues, please share your live location for faster assistance.' 
             : 'You can attach your current location to help us resolve the issue faster.'}
         </span>
         {locationLink ? (
@@ -231,7 +388,7 @@ export default function ComplaintForm({ onCreated }) {
         ) : (
           <button 
             type="button" 
-            className={(category === 'Ragging' || priority === 'High') ? "btn danger" : "btn secondary"} 
+            className={category === 'Ragging' ? "btn danger" : "btn secondary"} 
             style={{ width: 'fit-content', display: 'flex', alignItems: 'center', gap: 8 }}
             onClick={handleGetLocation}
             disabled={isLocating}

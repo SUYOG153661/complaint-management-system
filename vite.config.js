@@ -12,10 +12,13 @@ export default defineConfig({
         enabled: true
       },
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'masked-icon.png'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+      },
       manifest: {
-        name: 'Complaint Management System',
-        short_name: 'ComplaintHub',
-        description: 'Smart Student Complaint Management System with AI',
+        name: 'Sterling CMS',
+        short_name: 'SterlingCMS',
+        description: 'Sterling College Complaint Management System',
         theme_color: '#4f46e5',
         background_color: '#0f172a',
         display: 'standalone',

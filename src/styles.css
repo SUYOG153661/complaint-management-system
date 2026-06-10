@@ -496,7 +496,8 @@ button{cursor:pointer;transition:transform 0.1s, opacity 0.2s}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
 .row{display:flex;gap:12px;align-items:center}
 .col{display:flex;flex-direction:column;gap:8px}
-.input, select, textarea{background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px}
+.input, select, textarea{background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;width:100%}
+textarea{min-height:200px;resize:vertical}
 .btn{background:var(--accent);color:white;border:none;padding:10px 14px;border-radius:8px}
 .btn.secondary{background:var(--muted);color:white}
 .btn.show-more{background:var(--accent);color:#ffffff}
@@ -977,35 +978,66 @@ body.theme-blue{--accent:#2563eb;--accent-2:#0ea5e9;--grad-start:#e0f2fe;--grad-
 
 /* Print Styles */
 @media print {
-  .sidebar, .side-toggle, .btn, .ai-chat-messages, .ai-status-badge, .no-print, .admin-actions, .student-actions, .ai-status-badge, .pulse-glow {
+  /* Hide unnecessary elements */
+  .sidebar, .side-toggle, .btn, .ai-chat-messages, .ai-status-badge, .no-print, .admin-actions, .student-actions, .ai-status-badge, .pulse-glow, 
+  .ai-chat-floating, .nav, .footer, .theme-toggle-modern, .btn-circle, .btn-back, .mode-switch-link,
+  .login-cards-container, .login-card-landing, .auth-card-modern, .animated-bg, .bg-shape, .shape {
     display: none !important;
   }
+
+  /* Layout adjustments */
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
+  }
+  
   .content {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
+    overflow: visible !important;
   }
-  .admin-layout {
+  
+  .admin-layout, .container {
     display: block !important;
+    max-width: 100% !important;
+    padding: 20px !important;
+    overflow: visible !important;
   }
+
+  /* Card styles */
   .card, .panel {
-    border: 1px solid #eee !important;
+    border: 1px solid #ddd !important;
     break-inside: avoid;
     box-shadow: none !important;
     background: white !important;
     color: black !important;
+    margin-bottom: 16px !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
   }
+
+  /* Body styles */
   body {
     background: white !important;
     color: black !important;
+    font-size: 14px !important;
+    overflow: visible !important;
   }
+
+  /* Metric cards */
   .metric-card {
-    border: 1px solid #eee !important;
+    border: 1px solid #ddd !important;
     background: white !important;
     box-shadow: none !important;
     color: black !important;
+    break-inside: avoid;
   }
+
+  /* Text styles */
   .gradient-text {
     background: none !important;
     color: black !important;
@@ -1014,6 +1046,65 @@ body.theme-blue{--accent:#2563eb;--accent-2:#0ea5e9;--grad-start:#e0f2fe;--grad-
   .text-accent, .text-success, .text-warning, .text-danger {
     color: black !important;
     font-weight: bold;
+  }
+
+  /* Complaint details specific styles */
+  #printable-area, #printable-area * {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Timeline - remove max height for printing */
+  .timeline-modern, .row, .col, .card div[style*="max-height"], .card div[style*="maxHeight"] {
+    break-inside: avoid;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Badges */
+  .badge, .pill {
+    border: 1px solid #ddd !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Images */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    break-inside: avoid;
+  }
+
+  /* Tables and lists */
+  .table-card, .list-header, .list-row {
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Ensure all text is visible */
+  *, *::before, *::after {
+    color: black !important;
+    background: white !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Links */
+  a {
+    color: black !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Disable page breaks inside content */
+  .col, .row, .card {
+    page-break-inside: avoid !important;
   }
 }
 

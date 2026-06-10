@@ -151,7 +151,7 @@ export const getAiResponse = (message, context = {}) => {
   }
 
   if (msg.includes('profile') || msg.includes('photo') || msg.includes('pic') || msg.includes('image')) {
-    return "To change your profile picture, go to the 'Profile' section (click on your name/avatar in the top right), then click on the 'Edit Profile' button. You can upload a new photo from there. Mi tumhala profile photo badlayla madat karu shakto!";
+    return "To change your profile picture, go to the 'Profile' section (click on your name/avatar in the top right), then click on the 'Edit Profile' button. You can upload a new photo from there.";
   }
 
   // --- Pro Features: Advanced Reasoning & Summarization ---
@@ -185,7 +185,6 @@ I am an advanced AI assistant powered by Gemini Pro logic. I can:
 3. **Smart Categorization:** I automatically suggest categories.
 4. **Voice Interaction:** Speak to me directly!
 5. **Admin Reasoning:** I provide deep insights for administrators.
-6. **Multi-lingual:** I understand English, Hindi, and Marathi/Gujarati!
 
 How can I assist your ${role} workflow today?`;
   }
@@ -206,23 +205,23 @@ How can I assist your ${role} workflow today?`;
     return "You can toggle between Light and Dark mode using the sun/moon icon in the top navigation bar. System color scheme will change instantly!";
   }
 
-  if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey') || msg.includes('namaste') || msg.includes('kese ho') || msg.includes('kem cho') || msg.includes('kasa aahes')) {
-    return "Namaste! I'm your AI Assistant. I can help you analyze complaints, change settings, provide system stats, and suggest improvements. Mi ekdam majet aahe, tumhi kase aahat? How can I help you today?";
+  if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey')) {
+    return "Hello! I'm your AI Assistant. I can help you analyze complaints, change settings, provide system stats, and suggest improvements. How can I help you today?";
   }
 
-  if (msg.includes('how to submit') || msg.includes('kaise kare') || msg.includes('kasa karaycha')) {
+  if (msg.includes('how to submit')) {
     return "It's easy! Go to 'New Complaint', type a title, select a category, and describe your issue. I can even help you improve your description automatically!";
   }
 
   if (msg.includes('who made') || msg.includes('creator') || msg.includes('developer')) {
-    return "This Complaint Management System was developed to help students and admins communicate better. I am the AI brain behind it! Tumhala aavadla ka project?";
+    return "This Complaint Management System was developed to help students and admins communicate better. I am the AI brain behind it!";
   }
 
   if (msg.includes('joke') || msg.includes('funny')) {
     return "Why did the computer go to the doctor? Because it had a virus! Haha, jokes aside, I'm here to solve your problems.";
   }
 
-  if (msg.includes('what is this') || msg.includes('app badal सांगा')) {
+  if (msg.includes('what is this')) {
     return "This is a Complaint Management System where students can report issues like electricity, cleaning, or hostel problems, and admins can track and resolve them in real-time.";
   }
 
@@ -230,12 +229,12 @@ How can I assist your ${role} workflow today?`;
     return "I am constantly learning! You can improve the system by providing detailed descriptions in complaints. I can also help you analyze trends to see where improvements are needed most.";
   }
 
-  if (msg.includes('not working') || msg.includes('issue') || msg.includes('problem') || msg.includes('nit nahi kam karat')) {
-    return "I'm sorry to hear that. Is it a technical issue with the app or a complaint about facilities? You can describe it here, and I'll help you categorize it. Mala sanga kai problem yetoy, mi nakki madat karen.";
+  if (msg.includes('not working') || msg.includes('issue') || msg.includes('problem')) {
+    return "I'm sorry to hear that. Is it a technical issue with the app or a complaint about facilities? You can describe it here, and I'll help you categorize it.";
   }
 
-  if (msg.includes('kai sangat nahi') || msg.includes('answer me') || msg.includes('reply')) {
-    return "I am here to help! Please ask specifically about complaints, system stats, or how to use the dashboard. Mi tumchya prashnanchi vat baghat ahe.";
+  if (msg.includes('answer me') || msg.includes('reply')) {
+    return "I am here to help! Please ask specifically about complaints, system stats, or how to use the dashboard.";
   }
 
   if (msg.includes('urgent') || msg.includes('emergency') || msg.includes('priority')) {
@@ -246,36 +245,53 @@ How can I assist your ${role} workflow today?`;
     return "Hostel issues (water, furniture, cleaning) are usually resolved within 48 hours. Please make sure to provide your room number in the description.";
   }
 
-  if (msg.includes('thank') || msg.includes('shukriya') || msg.includes('dhanyavad')) {
-    return "You're welcome! Happy to help. Is there anything else you'd like to know?";
-  }
-
-  if (msg.includes('who are you') || msg.includes('what can you do') || msg.includes('tu kon hai')) {
+  if (msg.includes('who are you') || msg.includes('what can you do')) {
     return "I am the Intelligent Complaint Assistant. I can analyze sentiments, predict categories, suggest priorities, and provide real-time system stats.";
   }
 
-  if (msg.includes('time') || msg.includes('waqt') || msg.includes('vel')) {
+  if (msg.includes('time')) {
     return `The current time is ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}. Is there anything specific you need help with?`;
   }
 
-  if (msg.includes('date') || msg.includes('aaj ki tarik') || msg.includes('tarikh')) {
+  if (msg.includes('date')) {
     return `Today is ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
   }
 
-  if (msg.includes('weather') || msg.includes('baus') || msg.includes('paus') || msg.includes('climate')) {
+  if (msg.includes('weather')) {
     return "I don't have a real-time weather sensor, but I can tell you it's always a good day to resolve complaints! ☀️";
   }
 
-  if (msg.includes('location') || msg.includes('where is') || msg.includes('address')) {
-    return "This system is used for the college campus/hostel. If you are looking for a specific department, you can find them in the 'Admin' block.";
+  // College-specific answers (prioritized)
+  if (msg.includes('college name') || msg.includes('college') || msg.includes('institute') || msg.includes('clg')) {
+    return "Our college/institute name is **Sterling Institute of Management System**, located in Nerul.";
+  }
+  
+  if (msg.includes('address') || msg.includes('location') || msg.includes('where is')) {
+    return "We are located at Sterling Institute of Management System, Nerul, Navi Mumbai, Maharashtra, India.";
+  }
+  
+  if (msg.includes('contact') || msg.includes('phone') || msg.includes('mobile') || msg.includes('call') || msg.includes('number')) {
+    return "Our contact number is +91-9004971944. You can reach out for any queries or concerns during office hours.";
+  }
+  
+  if (msg.includes('email') || msg.includes('mail')) {
+    return "Our official email for admin queries is admin@gmail.com.";
+  }
+  
+  if (msg.includes('categories')) {
+    return "We have the following complaint categories: Academic, Administrative, Facilities, Faculty, Hostel, Library, Transportation, Electricity, Cleaning, Ragging, and Other. You can select any of these while submitting your complaint.";
+  }
+  
+  if (msg.includes('how to use')) {
+    return "**How to use ComplaintHub:\n1. Register/Login to your account.\n2. Go to Dashboard → 'Submit New Complaint'.\n3. Fill in title, description, select appropriate category and priority.\n4. You can also add photos and your location for faster resolution.\n5. Submit and track your complaint status in 'My Complaints' section!";
+  }
+  
+  if (msg.includes('how are you')) {
+    return "I'm doing great, thank you for asking! I'm ready to help you manage your complaints.";
   }
 
-  if (msg.includes('how are you') || msg.includes('kasa aahes') || msg.includes('kese ho')) {
-    return "I'm doing great, thank you for asking! I'm ready to help you manage your complaints. Tumhi kase aahat?";
-  }
-
-  if (msg.includes('thank') || msg.includes('shukriya') || msg.includes('dhanyavad') || msg.includes('aabhar')) {
-    return "You're very welcome! I'm always happy to assist. Is there anything else? Tumchi ajun kai madat karu shakto?";
+  if (msg.includes('thank')) {
+    return "You're very welcome! I'm always happy to assist. Is there anything else?";
   }
 
   // Fallback with more suggestions

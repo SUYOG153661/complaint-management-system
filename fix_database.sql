@@ -13,6 +13,9 @@ GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
 -- 1. Add missing avatar_url column to profiles
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
 
+-- 2. Add admin_image_url column to complaints
+ALTER TABLE public.complaints ADD COLUMN IF NOT EXISTS admin_image_url text;
+
 -- 2. Enable Row Level Security on both tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.complaints ENABLE ROW LEVEL SECURITY;
